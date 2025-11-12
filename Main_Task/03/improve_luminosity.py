@@ -6,7 +6,8 @@ from pathlib import Path
 import sys, os
 # 把上一级的 02 文件夹加进搜索路径
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '02')))
-from demosaic_copy import demosaic_image, save_png16
+from demosaic import demosaic_image, save_16bit
+
 
 def improve_luminosity_linear(rgb: np.ndarray, gamma=0.3,
                               p_lo=0.01, p_hi=99.99) -> np.ndarray:
@@ -41,8 +42,8 @@ if __name__ == "__main__":
 
     # ① γ 曲线版本
     rgb_gamma = improve_luminosity_linear(rgb_linear, gamma=0.3)
-    save_png16(rgb_gamma, "IMG_4782_lumi_gamma.png")
+    save_16bit(rgb_gamma, "IMG_4782_lumi_gamma.png")
 
     # ② 对数曲线版本（满足第3题“至少再评估一种曲线”的要求）
     rgb_log = improve_luminosity_log(rgb_linear)
-    save_png16(rgb_log, "IMG_4782_lumi_log.png")
+    save_16bit(rgb_log, "IMG_4782_lumi_log.png")

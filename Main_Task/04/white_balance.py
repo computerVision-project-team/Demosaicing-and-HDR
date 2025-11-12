@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '0
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '03')))
 
 # === 2. 导入模块 ===
-from demosaic_copy import demosaic_image
+from demosaic import demosaic_image
 from improve_luminosity import improve_luminosity_linear
 
 # === 3. 读 RAW 并做去马赛克 ===

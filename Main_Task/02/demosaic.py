@@ -19,7 +19,9 @@ def make_masks(h, w, pattern):
         masks[color][c == color] = True
     return masks
 
-def demosaic_simple(raw_arr, pattern):
+def demosaic_image(path, pattern):
+    raw = rawpy.imread(path)
+    raw_arr = np.array(raw.raw_image_visible)
     raw_arr = raw_arr.astype(np.float64)
     h, w = raw_arr.shape
     masks = make_masks(h, w, pattern)
@@ -42,12 +44,13 @@ def save_16bit(rgb, path):
     ok = cv2.imwrite(path, bgr16)  # 16-bit PNG
 
 
-# 主流程
-raw = rawpy.imread("IMG_4782.CR3")
-array = np.array(raw.raw_image_visible)
-pattern = bayer_pattern_from_raw(raw)
-print("Detected Bayer pattern:", pattern)
 
-rgb = demosaic_simple(array, pattern)
-save_16bit(rgb, "IMG_4782_demosaic.png")
-print("Saved -> IMG_4782_demosaic.png")
+if __name__ == '__main__':
+    path = "IMG_4782.CR3"
+    raw = rawpy.imread(path)
+    pattern = bayer_pattern_from_raw(raw)
+    print("Detected Bayer pattern:", pattern)
+
+    rgb = demosaic_image(path, pattern)
+    save_16bit(rgb, "IMG_4782_demosaic.png")
+    print("Saved -> IMG_4782_demosaic.png")
