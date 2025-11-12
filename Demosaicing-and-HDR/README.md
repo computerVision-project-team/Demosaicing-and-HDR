@@ -1,1 +1,0 @@
-# Demosaicing-and-HDR
