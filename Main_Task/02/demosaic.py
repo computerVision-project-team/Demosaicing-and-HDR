@@ -1,67 +1,53 @@
 import numpy as np
 import rawpy
+from scipy.signal import convolve2d
 import cv2
 
-# === 1. 导入 RAW 文件 ===
-raw = rawpy.imread('IMG_4782.CR3')
+def bayer_pattern_from_raw(raw):
+    patt = raw.raw_pattern.astype(int)
+    desc = raw.color_desc.decode("ascii")
+    idx2c = {i: desc[i] for i in range(len(desc))}
+    tile = np.vectorize(idx2c.get)(patt)
+    return "".join(tile.flatten())  # e.g. RGGB, GRBG, etc.
+
+def make_masks(h, w, pattern):
+    masks = {c: np.zeros((h, w), dtype=bool) for c in "RGB"}
+    p = np.array([[pattern[0], pattern[1]], [pattern[2], pattern[3]]])
+    yy, xx = np.indices((h, w))
+    c = p[yy % 2, xx % 2]
+    for color in "RGB":
+        masks[color][c == color] = True
+    return masks
+
+def demosaic_simple(raw_arr, pattern):
+    raw_arr = raw_arr.astype(np.float64)
+    h, w = raw_arr.shape
+    masks = make_masks(h, w, pattern)
+    kernel = np.ones((3,3))  # 简单平均核
+    eps = 1e-12
+
+    rgb = []
+    for color in "RGB":
+        M = masks[color].astype(np.float64)
+        num = convolve2d(M * raw_arr, kernel, mode="same", boundary="symm")
+        den = convolve2d(M, kernel, mode="same", boundary="symm")
+        rgb.append(num / (den + eps))
+    return np.stack(rgb, axis=-1)
+
+def save_16bit(rgb, path):
+    m = float(np.max(rgb)) if np.max(rgb) > 0 else 1.0
+    arr = np.clip(rgb / m, 0.0, 1.0)
+    arr16 = (arr * 65535.0 + 0.5).astype(np.uint16)
+    bgr16 = cv2.cvtColor(arr16, cv2.COLOR_RGB2BGR)
+    ok = cv2.imwrite(path, bgr16)  # 16-bit PNG
+
+
+# 主流程
+raw = rawpy.imread("IMG_4782.CR3")
 array = np.array(raw.raw_image_visible)
-print('Loaded RAW shape:', array.shape, 'dtype:', array.dtype)
+pattern = bayer_pattern_from_raw(raw)
+print("Detected Bayer pattern:", pattern)
 
-# === 2. 定义 Bayer 模式 ===
-pattern = "GRBG"
-
-# === 3. 根据 Bayer 模式生成掩码 ===
-h, w = array.shape
-R = np.zeros((h,w), bool)
-G = np.zeros((h,w), bool)
-B = np.zeros((h,w), bool)
-if pattern == "RGGB":
-    R[0::2,0::2]=1; G[0::2,1::2]=1; G[1::2,0::2]=1; B[1::2,1::2]=1
-elif pattern == "BGGR":
-    B[0::2,0::2]=1; G[0::2,1::2]=1; G[1::2,0::2]=1; R[1::2,1::2]=1
-elif pattern == "GRBG":
-    G[0::2,0::2]=1; R[0::2,1::2]=1; B[1::2,0::2]=1; G[1::2,1::2]=1
-elif pattern == "GBRG":
-    G[0::2,0::2]=1; B[0::2,1::2]=1; R[1::2,0::2]=1; G[1::2,1::2]=1
-
-# === 4. 定义 3×3 box 卷积函数 ===
-def conv3x3_box(img: np.ndarray) -> np.ndarray:
-    # 零填充 1 像素（上下左右各 1）
-    p = np.pad(img.astype(np.float64), ((1,1),(1,1)), mode="constant")
-    # 从 padded 里取 9 个相邻窗口并相加；输出形状与原图一致
-    out = (
-        p[0:-2, 0:-2] + p[0:-2, 1:-1] + p[0:-2, 2:  ] +
-        p[1:-1, 0:-2] + p[1:-1, 1:-1] + p[1:-1, 2:  ] +
-        p[2:  , 0:-2] + p[2:  , 1:-1] + p[2:  , 2:  ]
-    )
-    return out
-
-
-# === 5. 按讲义公式做权平均重建 ===
-X = array.astype(np.float64)  # 原始马赛克
-eps = 1e-12
-
-def reconstruct(mask_bool: np.ndarray) -> np.ndarray:
-    M = mask_bool.astype(np.float64)
-    num = conv3x3_box(M * X)            # (Mc * X) ⊗ K
-    den = conv3x3_box(M) + eps          # (Mc) ⊗ K
-    return num / den
-
-
-R_rec = reconstruct(R)
-G_rec = reconstruct(G)
-B_rec = reconstruct(B)
-rgb = np.stack([R_rec, G_rec, B_rec], axis=-1)
-
-# === 6. 简单白平衡 & Gamma ===
-def gray_world(rgb):
-    means = rgb.mean(axis=(0,1))
-    g = means[1]
-    gains = g / (means + 1e-9)
-    return rgb * gains
-rgb = gray_world(rgb)
-rgb = np.clip(rgb / np.percentile(rgb,99.5), 0, 1)**(1/2.2)
-
-# === 7. 导出 16-bit 图像（只在此步降精度） ===
-out16 = (rgb * 65535 + 0.5).astype(np.uint16)
-cv2.imwrite('IMG_4782_demosaic.png', cv2.cvtColor(out16, cv2.COLOR_RGB2BGR))
+rgb = demosaic_simple(array, pattern)
+save_16bit(rgb, "IMG_4782_demosaic.png")
+print("Saved -> IMG_4782_demosaic.png")
