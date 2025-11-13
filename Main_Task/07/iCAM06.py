@@ -1,5 +1,11 @@
 import numpy as np
 import cv2
+import sys, os
+# 把上一级的 06 文件夹加进搜索路径
+folder_this = os.path.dirname(__file__)                      # 当前文件路径 07/
+folder_06 = os.path.abspath(os.path.join(folder_this, '..', '06'))
+sys.path.append(folder_06)
+
 
 def icam06(rgb_lin, output_range=4.0, sigma_s=8, sigma_r=0.4, eps=1e-8):
     # rgb_lin: float, 线性RGB, HxWx3
@@ -26,3 +32,10 @@ def icam06(rgb_lin, output_range=4.0, sigma_s=8, sigma_r=0.4, eps=1e-8):
     out = np.stack([Rout, Gout, Bout], axis=-1)
     return out
 
+if __name__ == '__main__':
+    path = os.path.join(folder_06, 'HDR_linear.npy')
+    rgb = np.load(path)
+    out = icam06(rgb, output_range=4.0, sigma_s=8, sigma_r=0.4)
+    out_16bit = np.clip(out / np.max(out), 0, 1)
+    out_16bit = (out_16bit * 65535).astype(np.uint16)
+    cv2.imwrite("HDR_result_icam06_16bit.png", cv2.cvtColor(out_16bit, cv2.COLOR_RGB2BGR))
