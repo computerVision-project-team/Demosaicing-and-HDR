@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import sys, os
-# 把上一级的 06 文件夹加进搜索路径
 folder_this = os.path.dirname(__file__)                      # 当前文件路径 07/
 folder_06 = os.path.abspath(os.path.join(folder_this, '..', '06'))
 sys.path.append(folder_06)
