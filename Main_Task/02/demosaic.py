@@ -2,6 +2,9 @@ import numpy as np
 import rawpy
 from scipy.signal import convolve2d
 import cv2
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(__file__, '..', '..', '02')))
 
 def bayer_pattern_from_raw(raw):
     patt = raw.raw_pattern.astype(int)
