@@ -53,6 +53,7 @@ for idx, path in enumerate(files[1:], start=1):
 # === demosaic和白平衡 ===
 rgb = demosaic(h, pattern)
 rgb = gray_world(rgb)
+np.save("HDR_linear.npy", rgb)
 
 # === log tone mapping ===
 hdr_log = np.log1p(rgb)
