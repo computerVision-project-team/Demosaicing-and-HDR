@@ -23,7 +23,7 @@ def demosaic(raw_arr, pattern):
 
 
 
-# === 读取 raw 图像路径 ===
+# === 读取 raw 图像路径 ==
 folder = os.path.dirname(__file__)
 files = sorted(
     os.path.join(folder, f)
