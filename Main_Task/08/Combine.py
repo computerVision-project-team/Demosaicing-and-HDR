@@ -42,22 +42,39 @@ def process_raw(raw_path: str,
     # --- 04: 灰世界白平衡 ---
     rgb = gray_world(rgb)
 
-    # --- 可视化归一化到 [0,1] ---
-    intensity = rgb.mean(axis=2)
-    a = np.percentile(intensity, 0.01)
+    # --- 色温矩阵 ---
+    warm = rgb.copy()
+    warm[..., 0] *= 1.03  # R 增强，偏暖关键
+    warm[..., 2] *= 0.97  # B 减弱，去冷色
+
+    rgb = warm
+    # --- 颜色 & 对比度增强 ---
+    rgb_01 = (rgb / np.percentile(rgb, 99.5)).astype(np.float32)
+    rgb_01 = np.clip(rgb_01, 0.0, 1.0)
+
+    hsv = cv2.cvtColor(rgb_01, cv2.COLOR_RGB2HSV)
+    sat_gain = 1.4
+    hsv[..., 1] = np.clip(hsv[..., 1] * sat_gain, 0.0, 1.0)
+    rgb_sat = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+
+    # --- Local contrast (Unsharp Mask) ---
+    blur = cv2.GaussianBlur(rgb_sat, (0, 0), sigmaX=3, sigmaY=3)
+    detail = rgb_sat - blur
+
+    amount = 0.8  # 局部对比度强度，可调 0.5~2.0
+    rgb_local_contrast = np.clip(rgb_sat + amount * detail, 0.0, 1.0)
+
+    # --- 归一化 & 保存 ---
+    intensity = rgb_local_contrast.mean(axis=2)
+    a = np.percentile(intensity, 0.1)
     b = np.percentile(intensity, 99.99)
-    vis = np.clip((rgb - a) / (b - a + 1e-12), 0.0, 1.0)
+    vis = np.clip((rgb_local_contrast - a) / (b - a + 1e-12), 0.0, 1.0)
 
-    # --- 转成 8-bit 并保存为高质量 JPG ---
-    out8 = (vis * 255.0 + 0.5).astype(np.uint8)      # RGB [0,255]
-    out8_bgr = cv2.cvtColor(out8, cv2.COLOR_RGB2BGR) # OpenCV 用 BGR
+    out8 = (vis * 255.0 + 0.5).astype(np.uint8)
+    out8_bgr = cv2.cvtColor(out8, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(jpg_path, out8_bgr,
+                [int(cv2.IMWRITE_JPEG_QUALITY), int(jpeg_quality)])
 
-    cv2.imwrite(
-        jpg_path,
-        out8_bgr,
-        [int(cv2.IMWRITE_JPEG_QUALITY), int(jpeg_quality)]
-    )
-    print(f"Saved JPG (Q={jpeg_quality}) → {jpg_path}")
 
 
 if __name__ == "__main__":
