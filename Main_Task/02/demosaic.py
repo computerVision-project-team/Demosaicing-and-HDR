@@ -8,7 +8,7 @@ def bayer_pattern_from_raw(raw):
     desc = raw.color_desc.decode("ascii")
     idx2c = {i: desc[i] for i in range(len(desc))}
     tile = np.vectorize(idx2c.get)(patt)
-    return "".join(tile.flatten())  # e.g. RGGB, GRBG, etc.
+    return "".join(tile.flatten())
 
 def make_masks(h, w, pattern):
     masks = {c: np.zeros((h, w), dtype=bool) for c in "RGB"}
@@ -21,7 +21,7 @@ def make_masks(h, w, pattern):
 
 def demosaic_image(path, pattern):
     raw = rawpy.imread(path)
-    raw_arr = np.array(raw.raw_image_visible)
+    raw_arr = np.array(raw.raw_image_visible) # X
     raw_arr = raw_arr.astype(np.float64)
     h, w = raw_arr.shape
     masks = make_masks(h, w, pattern)
@@ -29,7 +29,7 @@ def demosaic_image(path, pattern):
     eps = 1e-12
 
     rgb = []
-    for color in "RGB":
+    for color in "RGB": # weighted average interpolation
         M = masks[color].astype(np.float64)
         num = convolve2d(M * raw_arr, kernel, mode="same", boundary="symm")
         den = convolve2d(M, kernel, mode="same", boundary="symm")
